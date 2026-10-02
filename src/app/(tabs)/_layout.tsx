@@ -1,7 +1,7 @@
-import { Tabs } from 'expo-router';
-import { Colors, Theme } from '../../theme/tokens';
-import { StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Tabs } from 'expo-router';
+import { StyleSheet } from 'react-native';
+import { Colors, Theme } from '../../theme/tokens';
 
 export default function TabLayout() {
   return (
@@ -21,9 +21,10 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Mi Jardín',
+          title: 'Herbario',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="leaf-outline" size={size} color={color} />
+            <Ionicons name="home-outline" size={size} color={color} />
           ),
         }}
       />

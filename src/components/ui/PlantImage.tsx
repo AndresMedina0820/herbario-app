@@ -20,8 +20,6 @@ export function PlantImage({ style, ...props }: PlantImageProps) {
 
 const styles = StyleSheet.create({
   image: {
-    borderWidth: Theme.borders.width.thin,
-    borderColor: Colors.inkDark,
     borderRadius: Theme.borders.radius.sm,
   },
 });

@@ -1,57 +1,100 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, SafeAreaView } from 'react-native';
-import { Colors, Theme } from '../../theme/tokens';
-import { useAppStore } from '../../store/useAppStore';
-import { useGardenActions } from '../../features/garden/hooks/useGardenActions';
+import { Ionicons } from '@expo/vector-icons';
+import { useEffect } from 'react';
+import { FlatList, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 import { Card } from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
-import { PlantImage } from '../../components/ui/PlantImage';
 import { PaperBackground } from '../../components/ui/PaperBackground';
+import { PlantImage } from '../../components/ui/PlantImage';
+import { useGardenActions } from '../../features/garden/hooks/useGardenActions';
 import type { Plant } from '../../store/useAppStore';
+import { useAppStore } from '../../store/useAppStore';
+import { Colors, Theme } from '../../theme/tokens';
+import { getPlantImage } from '../../utils/assets';
 
 export default function GardenScreen() {
   const plants = useAppStore((state) => state.plants);
   const loadPlants = useAppStore((state) => state.loadPlants);
-  const { addPlant, waterPlant } = useGardenActions();
+  const { waterPlant } = useGardenActions();
 
-  // Cargamos las plantas de SQLite en cuanto se monta la pantalla
   useEffect(() => {
     loadPlants();
   }, [loadPlants]);
 
-  const handleAddTestPlant = () => {
-    addPlant(
-      'fern_01',
-      'Helecho de Prueba',
-      null, // Sin imagen remota por ahora, veremos el skeleton crema
-      2 // Frecuencia: cada 2 días
-    );
-  };
+  // Ordenar plantas para que las urgentes (menor next_watering_date) salgan primero
+  const sortedPlants = [...plants].sort((a, b) => {
+    const aNext = a.species_id === 'palo_de_agua' ? 0 : (a.next_watering_date || 0);
+    const bNext = b.species_id === 'palo_de_agua' ? 0 : (b.next_watering_date || 0);
+    return aNext - bNext;
+  });
 
   const handleWater = (plant: Plant) => {
     waterPlant(plant.id, plant.next_watering_date, 1, 2);
   };
 
   const renderPlant = ({ item }: { item: Plant }) => {
+    const now = Math.floor(Date.now() / 1000);
+    const nextWatering = item.next_watering_date || now;
+    let daysUntilWatering = Math.ceil((nextWatering - now) / (60 * 60 * 24));
+    const frequency = item.water_frequency_days || 1;
+    
+    // TODO: Forzar PRUEBA: Palo de agua siempre necesita agua hoy
+    if (item.species_id === 'palo_de_agua') {
+      daysUntilWatering = 0;
+    }
+    
+    // 0% = Needs water, 100% = Full water
+    let percentage = frequency > 0 ? (daysUntilWatering / frequency) * 100 : 0;
+    percentage = Math.max(0, Math.min(100, percentage));
+
+    const radius = 10;
+    const circumference = 2 * Math.PI * radius;
+    const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
+    const isUrgent = daysUntilWatering <= 0;
+
     return (
-      <Card style={styles.plantCard}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.plantName}>{item.nickname || 'Planta Desconocida'}</Text>
-          {item.next_watering_date && (
-            <Text style={styles.dateText}>
-              Próx. riego: {new Date(item.next_watering_date * 1000).toLocaleDateString()}
-            </Text>
-          )}
+      <Card style={[styles.plantCard, isUrgent && styles.urgentCard]}>
+        {isUrgent && (
+          <View style={styles.urgentBadge}>
+            <Ionicons name="water" size={20} color={Colors.inkDark} />
+          </View>
+        )}
+        {/* Progreso Circular Flotante Arriba Izquierda (Oculto si es urgente) */}
+        {!isUrgent && (
+          <View style={styles.topLeftProgress}>
+            <Svg width="24" height="24" style={{ position: 'absolute' }}>
+              <Circle cx="12" cy="12" r={radius} stroke={Colors.paperDark} strokeWidth="2" fill="none" />
+              <Circle 
+                cx="12" cy="12" r={radius} 
+                stroke={Colors.inkDark} 
+                strokeWidth="2" 
+                fill="none" 
+                strokeDasharray={circumference} 
+                strokeDashoffset={strokeDashoffset} 
+                strokeLinecap="round"
+                rotation="-90" 
+                origin="12, 12" 
+              />
+            </Svg>
+            <Ionicons name="water-outline" size={10} color={Colors.inkDark} />
+          </View>
+        )}
+
+        <PlantImage source={getPlantImage(item.asset_url)} style={styles.imagePlaceholder} />
+        
+        <View style={styles.cardContent}>
+          <Text style={styles.plantName}>{item.nickname || item.species_id.replace(/_/g, ' ')}</Text>
+          
+          <TouchableOpacity style={styles.statusRow} onPress={() => handleWater(item)}>
+            {isUrgent ? (
+              <Text style={[styles.statusText, styles.urgentStatusText]}>¡Regar Hoy!</Text>
+            ) : (
+              <Text style={styles.statusText}>
+                Prox. riego: <Text style={styles.boldText}>{daysUntilWatering} días</Text>
+              </Text>
+            )}
+          </TouchableOpacity>
         </View>
-        
-        <PlantImage style={styles.imagePlaceholder} />
-        
-        <Button 
-          title="Regar hoy" 
-          variant="secondary" 
-          onPress={() => handleWater(item)} 
-          style={styles.waterButton}
-        />
       </Card>
     );
   };
@@ -59,21 +102,30 @@ export default function GardenScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <PaperBackground>
+        {/* Custom Header Wireframe */}
+        <View style={styles.headerContainer}>
+          <View style={styles.headerTopRow}>
+            <View style={styles.headerRightIcons}>
+              <Ionicons name="search-outline" size={24} color={Colors.inkDark} />
+              <Ionicons name="filter-outline" size={24} color={Colors.inkDark} style={styles.iconMargin} />
+            </View>
+          </View>
+          <Text style={styles.mainTitle}>Mi Herbario</Text>
+        </View>
+
         <FlatList
-          data={plants}
+          data={sortedPlants}
           keyExtractor={(item) => item.id}
           renderItem={renderPlant}
+          numColumns={2}
           contentContainerStyle={styles.listContent}
+          columnWrapperStyle={styles.columnWrapper}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>Tu jardín está vacío.</Text>
+              <Text style={styles.emptyText}>Tu herbario está vacío. Ve al catálogo para añadir tu primera planta.</Text>
             </View>
           }
         />
-        
-        <View style={styles.footer}>
-          <Button title="Añadir Planta de Prueba" onPress={handleAddTestPlant} />
-        </View>
       </PaperBackground>
     </SafeAreaView>
   );
@@ -84,36 +136,120 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.paper,
   },
-  container: {
-    flex: 1,
+  headerContainer: {
+    paddingHorizontal: Theme.spacing.lg,
+    paddingTop: Theme.spacing.md,
+    paddingBottom: Theme.spacing.sm,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginBottom: Theme.spacing.md,
+  },
+  headerRightIcons: {
+    flexDirection: 'row',
+  },
+  iconMargin: {
+    marginLeft: Theme.spacing.md,
+  },
+  mainTitle: {
+    fontFamily: Theme.typography.family.serif,
+    fontSize: Theme.typography.size.xxl,
+    color: Colors.inkDark,
+    textAlign: 'center',
+    lineHeight: 36,
   },
   listContent: {
     padding: Theme.spacing.md,
+    paddingBottom: Theme.spacing.xxl,
+  },
+  columnWrapper: {
+    justifyContent: 'space-between',
   },
   plantCard: {
-    marginBottom: Theme.spacing.lg,
+    width: '48%',
+    marginBottom: Theme.spacing.md,
+    justifyContent: 'space-between',
   },
-  cardHeader: {
-    marginBottom: Theme.spacing.sm,
+  urgentCard: {
+    borderWidth: 2,
+    borderColor: Colors.inkDark,
+    transform: [{ rotate: '-2deg' }],
   },
-  plantName: {
-    fontFamily: Theme.typography.family.serif,
-    fontSize: Theme.typography.size.lg,
-    color: Colors.inkDark,
-    marginBottom: Theme.spacing.xs,
-  },
-  dateText: {
-    fontFamily: Theme.typography.family.mono,
-    fontSize: Theme.typography.size.sm,
-    color: Colors.inkMedium,
+  urgentBadge: {
+    position: 'absolute',
+    top: -12,
+    right: -12,
+    zIndex: 20,
+    backgroundColor: Colors.paper,
+    borderRadius: 20,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: Colors.inkDark,
   },
   imagePlaceholder: {
     width: '100%',
-    height: 180,
-    marginBottom: Theme.spacing.md,
+    aspectRatio: 1, // Cuadrado perfecto
+    marginBottom: Theme.spacing.sm,
   },
-  waterButton: {
+  cardContent: {
+    alignItems: 'center',
+  },
+  plantName: {
+    fontFamily: Theme.typography.family.serif,
+    fontSize: 16,
+    color: Colors.inkDark,
+    textAlign: 'center',
+    marginBottom: Theme.spacing.xs,
+  },
+  topLeftProgress: {
+    position: 'absolute',
+    top: Theme.spacing.sm,
+    left: Theme.spacing.sm,
+    zIndex: 10,
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.paper, // Fondo crema ligero para asegurar contraste sobre la imagen
+    borderRadius: 12,
+  },
+  speciesText: {
+    fontFamily: Theme.typography.family.sans,
+    fontSize: 10,
+    color: Colors.inkMedium,
+    textAlign: 'center',
+    textTransform: 'capitalize',
+    marginBottom: Theme.spacing.xs,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginTop: Theme.spacing.xs,
+  },
+  statusText: {
+    fontFamily: Theme.typography.family.sans,
+    fontSize: 14,
+    color: Colors.inkDark,
+  },
+  urgentStatusText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    backgroundColor: Colors.inkDark,
+    color: Colors.paperHighlight,
+    paddingHorizontal: Theme.spacing.sm,
+    paddingVertical: 2,
+    overflow: 'hidden', // Necesario para que recortes de fondo en Text funcionen bien en iOS
+  },
+  boldText: {
+    fontWeight: 'bold',
+    textDecorationLine: 'underline',
+    fontSize: 15,
   },
   emptyContainer: {
     padding: Theme.spacing.xl,
@@ -126,11 +262,6 @@ const styles = StyleSheet.create({
     fontSize: Theme.typography.size.md,
     color: Colors.inkMedium,
     fontStyle: 'italic',
-  },
-  footer: {
-    padding: Theme.spacing.md,
-    borderTopWidth: Theme.borders.width.thick,
-    borderColor: Colors.inkDark,
-    backgroundColor: Colors.paperHighlight,
+    textAlign: 'center',
   }
 });

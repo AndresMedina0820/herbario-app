@@ -22,6 +22,13 @@ export const initializeDatabase = () => {
         next_watering_date INTEGER
       );
     `);
+    
+    // Migración automática de SQLite para usuarios que ya tenían la tabla creada
+    try {
+      db.execSync(`ALTER TABLE user_plants ADD COLUMN water_frequency_days INTEGER DEFAULT 7;`);
+    } catch (e) {
+      // Ignoramos el error si la columna ya existe
+    }
 
     // Crear tabla de watering_logs (Gamificación / Rachas)
     // current_streak_at_log guarda el estado inmutable de la racha en ese momento

@@ -8,6 +8,7 @@ export interface Plant {
   asset_url: string | null;
   added_at: number;
   next_watering_date: number | null;
+  water_frequency_days: number;
 }
 
 interface AppState {

@@ -13,9 +13,9 @@ export function useGardenActions() {
 
     try {
       db.runSync(
-        `INSERT INTO user_plants (id, species_id, nickname, asset_url, added_at, next_watering_date) 
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [id, speciesId, nickname, assetUrl, addedAt, nextWateringDate]
+        `INSERT INTO user_plants (id, species_id, nickname, asset_url, added_at, next_watering_date, water_frequency_days) 
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [id, speciesId, nickname, assetUrl, addedAt, nextWateringDate, frequencyDays]
       );
       // Latencia cero: recargamos la lista en el store global inmediatamente
       loadPlants();

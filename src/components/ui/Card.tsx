@@ -12,12 +12,10 @@ export function Card({ style, children, ...props }: ViewProps) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.paperHighlight,
-    borderWidth: Theme.borders.width.thick,
+    backgroundColor: 'transparent',
+    borderWidth: Theme.borders.width.thin,
     borderColor: Colors.inkDark,
-    borderRadius: Theme.borders.radius.md,
-    padding: Theme.spacing.md,
-    // Soft brutalism evita sombras difuminadas. Si queremos sombra, sería solida (offset sin radius), 
-    // pero mantenemos el diseño limpio y físico.
+    borderRadius: Theme.borders.radius.lg,
+    padding: Theme.spacing.sm,
   },
 });
