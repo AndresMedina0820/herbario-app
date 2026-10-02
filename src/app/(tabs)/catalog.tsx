@@ -1,11 +1,12 @@
-import React from 'react';
-import { View, Text, StyleSheet, FlatList, SafeAreaView, Alert } from 'react-native';
-import { Colors, Theme } from '../../theme/tokens';
-import { PaperBackground } from '../../components/ui/PaperBackground';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import { Alert, FlatList, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Card } from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
+import { PaperBackground } from '../../components/ui/PaperBackground';
 import { PlantImage } from '../../components/ui/PlantImage';
+import { PromptModal } from '../../components/ui/PromptModal';
 import { useGardenActions } from '../../features/garden/hooks/useGardenActions';
+import { Colors, Theme } from '../../theme/tokens';
 import { MockImages } from '../../utils/assets';
 
 const MOCK_CATALOG = [
@@ -17,26 +18,39 @@ const MOCK_CATALOG = [
 
 export default function CatalogScreen() {
   const { addPlant } = useGardenActions();
+  const [selectedPlant, setSelectedPlant] = useState<typeof MOCK_CATALOG[0] | null>(null);
+  const [nickname, setNickname] = useState('');
 
-  const handleAdd = (item: typeof MOCK_CATALOG[0]) => {
-    // Usamos el species_id como el assetUrl para mapear la imagen
-    addPlant(item.species_id, item.name, item.species_id, item.frequencyDays);
-    // Retroalimentación visual sutil
-    Alert.alert("¡Planta adoptada!", `Tu ${item.name} ha sido añadida a tu jardín local.`);
+  const promptAddPlant = (item: typeof MOCK_CATALOG[0]) => {
+    setSelectedPlant(item);
+    setNickname(''); // Limpiar para nueva entrada
+  };
+
+  const confirmAddPlant = () => {
+    if (!selectedPlant) return;
+    
+    addPlant(
+      selectedPlant.species_id, 
+      nickname.trim() || '', 
+      selectedPlant.species_id, 
+      selectedPlant.frequencyDays
+    );
+    
+    Alert.alert("¡Adoptada!", `Tu nueva planta ha sido añadida a tu herbario.`);
+    setSelectedPlant(null);
   };
 
   const renderItem = ({ item }: { item: typeof MOCK_CATALOG[0] }) => (
     <Card style={styles.card}>
-      <PlantImage source={MockImages[item.species_id]} style={styles.image} />
-      <Text style={styles.name}>{item.name}</Text>
-      <Text style={styles.scientific}>{item.scientific}</Text>
-      <View style={styles.footer}>
-        <Button 
-          title="Añadir a mi jardín" 
-          variant="primary" 
-          style={styles.addButton} 
-          onPress={() => handleAdd(item)}
-        />
+      <PlantImage source={MockImages[item.species_id as keyof typeof MockImages]} style={styles.image} />
+      
+      <View style={styles.cardContent}>
+        <Text style={styles.name}>{item.name}</Text>
+        <Text style={styles.scientific}>{item.scientific}</Text>
+        
+        <TouchableOpacity style={styles.addButton} onPress={() => promptAddPlant(item)}>
+          <Text style={styles.addButtonText}>Añadir</Text>
+        </TouchableOpacity>
       </View>
     </Card>
   );
@@ -44,6 +58,18 @@ export default function CatalogScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <PaperBackground>
+        <View style={styles.headerContainer}>
+          <Text style={styles.mainTitle}>Índice Botánico</Text>
+          <View style={styles.searchBar}>
+            <Ionicons name="search" size={18} color={Colors.inkMedium} />
+            <TextInput 
+              placeholder="Buscar especies..." 
+              placeholderTextColor={Colors.inkMedium}
+              style={styles.searchInput}
+            />
+          </View>
+        </View>
+
         <FlatList
           data={MOCK_CATALOG}
           keyExtractor={(item) => item.id}
@@ -52,6 +78,19 @@ export default function CatalogScreen() {
           contentContainerStyle={styles.listContent}
           columnWrapperStyle={styles.columnWrapper}
         />
+
+        <PromptModal
+          visible={!!selectedPlant}
+          title="Nombrar Planta"
+          subtitle={`Escribe un apodo para identificar tu ${selectedPlant?.name}. Si lo dejas vacío, usaremos su nombre real.`}
+          placeholder="Ej. Señor Espinas"
+          value={nickname}
+          onChangeText={setNickname}
+          onCancel={() => setSelectedPlant(null)}
+          onConfirm={confirmAddPlant}
+          maxLength={18}
+        />
+
       </PaperBackground>
     </SafeAreaView>
   );
@@ -59,12 +98,42 @@ export default function CatalogScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Colors.paper },
-  listContent: { padding: Theme.spacing.md },
+  headerContainer: {
+    paddingHorizontal: Theme.spacing.lg,
+    paddingTop: Theme.spacing.md,
+    paddingBottom: Theme.spacing.sm,
+  },
+  mainTitle: {
+    fontFamily: Theme.typography.family.serif,
+    fontSize: Theme.typography.size.xxl,
+    color: Colors.inkDark,
+    textAlign: 'center',
+    marginBottom: Theme.spacing.md,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: Colors.inkDark,
+    backgroundColor: Colors.paperHighlight,
+    paddingHorizontal: Theme.spacing.sm,
+    height: 44,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: Theme.spacing.sm,
+    fontFamily: Theme.typography.family.sans,
+    fontSize: 14,
+    color: Colors.inkDark,
+  },
+  listContent: { 
+    padding: Theme.spacing.md,
+    paddingBottom: Theme.spacing.xxl,
+  },
   columnWrapper: { justifyContent: 'space-between' },
   card: {
     width: '48%',
     marginBottom: Theme.spacing.md,
-    padding: Theme.spacing.sm,
     justifyContent: 'space-between',
   },
   image: {
@@ -72,23 +141,38 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     marginBottom: Theme.spacing.sm,
   },
+  cardContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   name: {
     fontFamily: Theme.typography.family.serif,
-    fontSize: Theme.typography.size.md,
+    fontSize: 16,
     color: Colors.inkDark,
+    textAlign: 'center',
     marginBottom: 2,
   },
   scientific: {
     fontFamily: Theme.typography.family.mono,
-    fontSize: Theme.typography.size.xs,
+    fontSize: 13,
     color: Colors.inkMedium,
     fontStyle: 'italic',
-  },
-  footer: {
-    marginTop: Theme.spacing.md,
+    textAlign: 'center',
+    marginBottom: Theme.spacing.md,
   },
   addButton: {
-    paddingVertical: Theme.spacing.sm,
-    paddingHorizontal: Theme.spacing.xs,
+    borderWidth: 1,
+    borderColor: Colors.inkDark,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    width: '100%',
+    alignItems: 'center',
+  },
+  addButtonText: {
+    fontFamily: Theme.typography.family.mono,
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: Colors.inkDark,
   }
 });

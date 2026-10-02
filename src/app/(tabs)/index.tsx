@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
 import { FlatList, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
 import { Card } from '../../components/ui/Card';
+import { CircularProgress } from '../../components/ui/CircularProgress';
 import { PaperBackground } from '../../components/ui/PaperBackground';
 import { PlantImage } from '../../components/ui/PlantImage';
 import { useGardenActions } from '../../features/garden/hooks/useGardenActions';
@@ -46,9 +46,6 @@ export default function GardenScreen() {
     let percentage = frequency > 0 ? (daysUntilWatering / frequency) * 100 : 0;
     percentage = Math.max(0, Math.min(100, percentage));
 
-    const radius = 10;
-    const circumference = 2 * Math.PI * radius;
-    const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
     const isUrgent = daysUntilWatering <= 0;
 
@@ -62,21 +59,12 @@ export default function GardenScreen() {
         {/* Progreso Circular Flotante Arriba Izquierda (Oculto si es urgente) */}
         {!isUrgent && (
           <View style={styles.topLeftProgress}>
-            <Svg width="24" height="24" style={{ position: 'absolute' }}>
-              <Circle cx="12" cy="12" r={radius} stroke={Colors.paperDark} strokeWidth="2" fill="none" />
-              <Circle 
-                cx="12" cy="12" r={radius} 
-                stroke={Colors.inkDark} 
-                strokeWidth="2" 
-                fill="none" 
-                strokeDasharray={circumference} 
-                strokeDashoffset={strokeDashoffset} 
-                strokeLinecap="round"
-                rotation="-90" 
-                origin="12, 12" 
-              />
-            </Svg>
-            <Ionicons name="water-outline" size={10} color={Colors.inkDark} />
+            <CircularProgress 
+              percentage={percentage} 
+              icon={percentage === 0 ? "water" : "water-outline"} 
+              size={24}
+              strokeWidth={2}
+            />
           </View>
         )}
 
@@ -87,9 +75,9 @@ export default function GardenScreen() {
           
           <TouchableOpacity style={styles.statusRow} onPress={() => handleWater(item)}>
             {isUrgent ? (
-              <Text style={[styles.statusText, styles.urgentStatusText]}>¡Regar Hoy!</Text>
+              <Text style={styles.urgentStatusText}>¡Regar Hoy!</Text>
             ) : (
-              <Text style={styles.statusText}>
+              <Text style={styles.normalStatusText}>
                 Prox. riego: <Text style={styles.boldText}>{daysUntilWatering} días</Text>
               </Text>
             )}
@@ -204,19 +192,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.inkDark,
     textAlign: 'center',
-    marginBottom: Theme.spacing.xs,
+    marginBottom: 0,
   },
   topLeftProgress: {
     position: 'absolute',
     top: Theme.spacing.sm,
     left: Theme.spacing.sm,
     zIndex: 10,
-    width: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.paper, // Fondo crema ligero para asegurar contraste sobre la imagen
-    borderRadius: 12,
   },
   speciesText: {
     fontFamily: Theme.typography.family.sans,
@@ -224,20 +206,22 @@ const styles = StyleSheet.create({
     color: Colors.inkMedium,
     textAlign: 'center',
     textTransform: 'capitalize',
-    marginBottom: Theme.spacing.xs,
+    marginBottom: 0,
   },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: Theme.spacing.xs,
+    marginTop: 2,
   },
-  statusText: {
-    fontFamily: Theme.typography.family.sans,
-    fontSize: 14,
+  normalStatusText: {
+    fontFamily: Theme.typography.family.mono,
+    fontStyle: 'italic',
+    fontSize: 13,
     color: Colors.inkDark,
   },
   urgentStatusText: {
+    fontFamily: Theme.typography.family.sans,
     fontSize: 14,
     fontWeight: 'bold',
     backgroundColor: Colors.inkDark,
